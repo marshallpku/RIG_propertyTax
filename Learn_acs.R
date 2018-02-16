@@ -78,13 +78,16 @@ df_state
 
 
 NY <- geo.make(state = "NY", county = "*" )
-df_ny <- acs.fetch(geo = NY, variable = c("B25090_001", "B25103_001"), endyear = 2016 )
-df_ny
+df_ny <- acs.fetch(geo = NY, variable = c("B25090_001", "B25103_001"), endyear = 2014 )
+df_ny@estimate
 
 
 NY2 <- geo.make(state = "NY", school.district.unified = c("Shen", "Niskayuna", "Guilderland", "Albany"))
 df_ny2 <- acs.fetch(geo = NY2, variable = c("B25103_001"), endyear = 2016 )
-df_ny2
+df_ny2@geography
+
+
+str(df_ny2)
 
 
 
