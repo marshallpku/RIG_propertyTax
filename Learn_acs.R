@@ -90,6 +90,31 @@ df_ny2@geography
 str(df_ny2)
 
 
+#**********************************************************************
+#                   Getting state level data                                   ####
+#**********************************************************************
+acs.lookup(endyear = 2015, keyword = "real estate tax")
+
+states <- geo.make(state = row.names(USArrests))
+
+df_state <- acs.fetch(geo = states, variable = c("B25090_001", "B25103_001"), endyear = 2015 )
+df_propertyTax_acs <- 
+	df_state@estimate %>% 
+	as.data.frame %>% 
+	rename(Aggretage_propertyTax = B25090_001,
+				 Median_propertyTax    = B25103_001) %>% 
+	mutate(state = row.names(.)) %>% 
+	select(state, everything()) %>% 
+	arrange(desc(Median_propertyTax))
+
+write.xlsx2(df_propertyTax_acs, file = paste0(dir_dataout, "PropertyTax_PrelimTables_ACS.xlsx"))
+
+
+
+
+
+
+
 
 
 

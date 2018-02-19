@@ -30,16 +30,22 @@ library(magrittr)
 library(stringr)
 library(xts)
 library(lubridate)
+
 library(readxl)
+library(xlsx)
+
+library(readr)
 
 library(acs)
 
+# check pakcage r2excel: edits excel, based on xlsx
 
 
 #**********************************************************************
 #                           Global settings                        ####
 #**********************************************************************
 dir_dataraw <- "Data_raw/"
+dir_dataout <- "Data_out/"
 
 
 
@@ -79,17 +85,22 @@ df_SLGF2015b <- left_join(
 )
 
 df_SLGF2015 <- bind_rows(df_SLGF2015a, df_SLGF2015b)
+df_SLGF2015
 
 
 # Variables needed:
 
 # Line:
-# 7: general revenue from own sources
-# 8: Taxes
-#  9: Property
-#  11: general sales
-#  18: individual income
+vars_SLGF = c(7,  # general revenue from own sources
+              8,  # Taxes
+              9,  # Property
+              11, # general sales
+              18  #individual income
+)
 
+df_SLGF2015_select <- 
+	df_SLGF2015 %>% 
+	filter(Line %in% vars_SLGF)
 
 
 #**********************************************************************
@@ -106,16 +117,123 @@ df_population <-
 				 state = X__1) %>% 
 	mutate(state = str_replace(state, "\\W", ""))
 
+df_population
+
 
 #**********************************************************************
-#                  US population estimate                          ####
+#                  US school finance####
 #**********************************************************************
 
 fileName_schoolFin <- paste0(dir_dataraw, "CensusSchoolFin/elsec15_sttables.xls")
-range_page1 <- "A5:L71"
+range_page1 <- "A8:L71"
+range_page4 <- "A7:K70"
 
 df_schoolFin_p1 <- 
-	read_excel(fileName_schoolFin, "1", range_page1, col_names = FALSE)
+	read_excel(fileName_schoolFin, "1", range_page1) %>%  # Total revenue
+  select(-X__2) %>% 
+	filter(!is.na(X__1))
+
+varNames_schoolFin_p1 <- c("state", 
+													 "revenue_total",
+													 "revenue_federal",
+													 "revenue_state",
+													 "revenue_local",
+													 "expen_total",
+													 "expen_current",
+													 "expen_capital",
+													 "expen_other",
+													 "debt_outstanding",
+													 "cashSecurity")
+names(df_schoolFin_p1) <- varNames_schoolFin_p1
+df_schoolFin_p1 %<>% 
+	mutate(state = str_replace(state, "\\.+", "")) %>% 
+	mutate_at(vars(-state), funs(as.numeric))
+
+
+
+df_schoolFin_p4 <- 
+	read_excel(fileName_schoolFin, "4", range_page4, col_names = FALSE) %>%  # Local revenue
+	select(-X__2) %>% 
+	filter(!is.na(X__1))
+
+varNames_schoolFin_p4 <- c("state",
+													 "revenue_local_total",
+													 "propertyTax",
+													 "otherTax",
+													 "parentGov",
+													 "nonSchoolLocal",
+													 "schoolLunchChg",
+													 "tuitionChg",
+													 "otherChg",
+													 "otherLocalRev"
+													 )
+names(df_schoolFin_p4) <- varNames_schoolFin_p4
+df_schoolFin_p4 %<>% 
+	mutate(state = str_replace(state, "\\.+", "")) %>% 
+	mutate_at(vars(-state), funs(as.numeric))
+
+df_schoolFin_p1
+df_schoolFin_p4
+
+#**********************************************************************
+#                  Preliminary tables                              ####
+#**********************************************************************
+
+## Property taxes as share of total local taxes, FY2015
+
+tbl_1 <- 
+df_SLGF2015 %>% 
+	filter(govVar_short == 4, Line %in% c(8,9)) %>%
+	select(state, Description, value) %>% 
+	spread(Description, value) %>% 
+	mutate(Property_pct = 100 * Property / Taxes) %>% 
+	arrange(desc(Property_pct))
+tbl_1
+
+
+## Total property tax and per capita property tax
+tbl_2 <- 
+left_join(
+		df_SLGF2015 %>% 
+			filter(govVar_short == 4, Line %in% c(9)) %>%
+			select(state, Description, value) %>% 
+			spread(Description, value) %>% 
+			mutate(state = ifelse(state == "United States Total", "US", state)),
+		
+		df_population %>% 
+			select(state, `2015`) %>% 
+			mutate(state = ifelse(state == "UnitedStates", "US", state))
+) %>%
+	rename(pop2015 = `2015`) %>% 
+	mutate(Property_perCapita = 1000* Property / pop2015) %>% 
+	arrange(desc(Property_perCapita))
+
+
+## Distribution of Public K012 School Revenue 2015
+
+tbl_3 <- 
+left_join(
+    df_schoolFin_p1 %>%  
+    	select(state, revenue_total, revenue_federal, revenue_state, revenue_local),
+    df_schoolFin_p4 %>% 
+    	select(state, propertyTax) 
+) %>% 
+	mutate(federal_pct  = 100 * revenue_federal / revenue_total,
+				 state_pct    = 100 * revenue_state / revenue_total,
+				 local_pct    = 100 * revenue_local / revenue_total,
+				 property_pct = 100 * propertyTax / revenue_total
+				 ) %>% 
+	arrange(desc(property_pct))
+tbl_3
+
+#**********************************************************************
+#                  Preliminary tables                              ####
+#**********************************************************************
+
+write.xlsx2(tbl_1, file = paste0(dir_dataout, "PropertyTax_PrelimTables_Census.xlsx"), sheetName = "PctLocal")
+write.xlsx2(tbl_2, file = paste0(dir_dataout, "PropertyTax_PrelimTables_Census.xlsx"), sheetName = "total&perCapita", append = TRUE)
+write.xlsx2(tbl_3, file = paste0(dir_dataout, "PropertyTax_PrelimTables_Census.xlsx"), sheetName = "schoolFinance", append = TRUE)
+
 
 
 
