@@ -6,7 +6,7 @@
 
 # Info for acs package
 # https://www.r-bloggers.com/acs-version-2-0-an-r-package-to-download-and-analyze-data-from-the-us-census/
-
+# http://dusp.mit.edu/sites/dusp.mit.edu/files/attachments/publications/working_with_acs_R_v_2.0.pdf
 
 #**********************************************************************
 #                           Packages                               ####
@@ -82,9 +82,13 @@ df_ny <- acs.fetch(geo = NY, variable = c("B25090_001", "B25103_001"), endyear =
 df_ny@estimate
 
 
-NY2 <- geo.make(state = "NY", school.district.unified = c("Shen", "Niskayuna", "Guilderland", "Albany"))
-df_ny2 <- acs.fetch(geo = NY2, variable = c("B25103_001"), endyear = 2016 )
+NY2 <- geo.make(state = "NY",  school.district.unified = c("Shen", "Niskayuna", "Guilderland", "Albany", "South Colonie",
+																													 "North Colonie"))
+df_ny2 <- acs.fetch(geo = NY2, variable = c("B25103_001"), endyear = 2016)
+df_ny2 <- acs.fetch(geo = NY2, table.number = "B25103", endyear = 2016, col.names = "pretty" )
+
 df_ny2@geography
+df_ny2
 
 
 str(df_ny2)
